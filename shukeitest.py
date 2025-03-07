@@ -1,8 +1,28 @@
 import time
+import xlsxwriter
+import pandas as pd
 import urllib.parse
+import io
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
+from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+import os
+import json
+
+# 環境変数からサービスアカウントキーを取得
+google_credentials_json = os.getenv("GOOGLE_SERVICE_ACCOUNT")
+if not google_credentials_json:
+    raise ValueError("GOOGLE_SERVICE_ACCOUNT が設定されていません。")
+json_data = json.loads(google_credentials_json)
+
+# Google Drive API 認証
+credentials = service_account.Credentials.from_service_account_info(json_data)
+drive_service = build("drive", "v3", credentials=credentials)
+print("✅ Google Drive API の認証が完了しました！")
 
 # Chromeのオプションを設定
 CHROME_OPTIONS = Options()
