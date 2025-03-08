@@ -43,26 +43,14 @@ six_hours_ago = now - timedelta(hours=6)
 # ツイート要素を取得
 tweet_elements = driver.find_elements(By.CSS_SELECTOR, 'div[class*="Tweet"]')
 
-# ツイートの文章と時間を取得
+# ツイートの文章のみを取得
 tweet_texts = set()
 for tweet_element in tweet_elements:
     try:
         tweet_text = tweet_element.text.strip()
-        time_text = tweet_element.find_element(By.CSS_SELECTOR, 'span[class*="time"]').text
         
-        # 時間表記の処理
-        tweet_time = now
-        if "分前" in time_text:
-            minutes_ago = int(re.search(r'\d+', time_text).group())
-            tweet_time = now - timedelta(minutes=minutes_ago)
-        elif "時間前" in time_text:
-            hours_ago = int(re.search(r'\d+', time_text).group())
-            tweet_time = now - timedelta(hours=hours_ago)
-        elif "昨日" in time_text:
-            tweet_time = now - timedelta(days=1)
-        
-        # ツイートが過去6時間以内であれば追加
-        if tweet_text and tweet_time >= six_hours_ago:
+        # ツイートが空でない場合に追加
+        if tweet_text:
             tweet_texts.add(tweet_text)
     except Exception:
         continue
