@@ -26,22 +26,37 @@ encoded_keyword = urllib.parse.quote(keyword)
 search_url = f"https://search.yahoo.co.jp/realtime/search?p={encoded_keyword}"
 
 driver.get(search_url)
-time.sleep(3)  # ページ読み込み待機
+time.sleep(3)  # ページの読み込みを待つ
 
-# ※ ページ上部に「約467件」などの件数表示がある場合、その要素を取得する
-# 例として、クラス名 "resultCount" の要素に件数が入っているケースを想定
+# 件数表示を取得する試み
+count_text = None
+# ① CSSセレクタで取得（従来の例）
 try:
     count_element = driver.find_element(By.CSS_SELECTOR, ".resultCount")
     count_text = count_element.text  # 例："約467件"
-    # 数字部分を抽出
+except Exception as e:
+    print("CSSセレクタ(.resultCount)では件数要素が見つかりませんでした。", e)
+
+# ② XPathで「約」と「件」を含む要素を探索
+if not count_text:
+    print("XPathによる探索を試みます。")
+    elements = driver.find_elements(By.XPATH, "//*[contains(text(),'約') and contains(text(),'件')]")
+    for elem in elements:
+        text = elem.text.strip()
+        # 「約◯◯件」の形式かチェック
+        m = re.search(r'約([\d,]+)件', text)
+        if m:
+            count_text = m.group(0)
+            break
+
+if count_text:
     m = re.search(r'約?([\d,]+)', count_text)
     if m:
-        count_str = m.group(1).replace(',', '')
-        count = int(count_str)
+        count_number = int(m.group(1).replace(',', ''))
+        print(f"過去1週間で『{keyword}』を含むツイート数: {count_number} 件")
     else:
-        count = 0
-    print(f"過去1週間で『{keyword}』を含むツイート数: {count} 件")
-except Exception as e:
-    print("件数の抽出に失敗しました:", e)
+        print("件数の抽出に失敗しました: 数字パターンが一致しません。")
+else:
+    print("件数の抽出に失敗しました: 該当するテキスト要素が見つかりませんでした。")
 
 driver.quit()
