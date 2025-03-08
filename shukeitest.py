@@ -29,7 +29,7 @@ time.sleep(3)  # ページの読み込みを待つ
 # 明示的な待機を使用してツイート要素が表示されるのを待つ
 try:
     WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, 'li[class*="StreamItem"]'))
+        EC.presence_of_element_located((By.CSS_SELECTOR, 'div[class*="Tweet"]'))
     )
 except Exception:
     print("ツイートの取得に失敗しました。")
@@ -41,7 +41,7 @@ now = datetime.now()
 six_hours_ago = now - timedelta(hours=6)
 
 # ツイート要素を取得
-tweet_elements = driver.find_elements(By.CSS_SELECTOR, 'li[class*="StreamItem"]')
+tweet_elements = driver.find_elements(By.CSS_SELECTOR, 'div[class*="Tweet"]')
 
 tweet_texts = set()
 for tweet_element in tweet_elements:
@@ -50,11 +50,15 @@ for tweet_element in tweet_elements:
         
         # ツイートが「ヨルクラ」を含むか確認
         if 'ヨルクラ' in tweet_text:
-            # 日付と時間の抽出（正確なフォーマット）
+            # 日付と時間の抽出
             time_match = re.search(r'(\d{1,2}/\d{1,2} \d{1,2}:\d{1,2})', tweet_text)
             if time_match:
-                tweet_time = time_match.group(1)
-                tweet_texts.add(f'{tweet_time} - {tweet_text}')
+                tweet_time_str = time_match.group(1)
+                tweet_time = datetime.strptime(f'{datetime.now().year}/{tweet_time_str}', '%Y/%m/%d %H:%M')
+                
+                # 6時間以内のツイートのみを対象
+                if tweet_time >= six_hours_ago:
+                    tweet_texts.add(f'{tweet_time.strftime("%Y-%m-%d %H:%M")} - {tweet_text}')
     except Exception:
         continue
 
