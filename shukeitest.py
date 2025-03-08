@@ -15,7 +15,6 @@ google_credentials_json = os.getenv("GOOGLE_SERVICE_ACCOUNT")
 if not google_credentials_json:
     raise ValueError("GOOGLE_SERVICE_ACCOUNT が設定されていません。")
 json_data = json.loads(google_credentials_json)
-# ※ Google認証情報は今回のツイート取得処理には直接使いませんが、念のため残しています。
 print("✅ Google Drive API の認証情報を取得しました！")
 
 # ===== Selenium WebDriver のセットアップ =====
@@ -31,7 +30,7 @@ search_url = f"https://search.yahoo.co.jp/realtime/search?p={encoded_keyword}"
 driver.get(search_url)
 time.sleep(2)  # ページが完全に読み込まれるまで待機
 
-# 自動更新を停止するため、もし該当するタブがあればクリック（記事ではその処理も実施）
+# 自動更新停止のため、該当タブをクリック（存在すれば）
 try:
     driver.find_element(By.CLASS_NAME, "Tab_on__cXzYq").click()
     time.sleep(1)
@@ -59,7 +58,6 @@ def parse_tweet_time(text):
                     dt = datetime.now()
                 return dt
         else:
-            # 例: "2023/04/01 12:34" の形式
             dt = datetime.strptime(text, "%Y/%m/%d %H:%M")
             return dt
     except Exception:
@@ -67,7 +65,7 @@ def parse_tweet_time(text):
 
 def extract_tweet_date(tweet_element):
     """
-    ツイート要素から時刻テキストを取得し、datetime に変換する。
+    ツイート要素から時刻テキストを取得し、datetime オブジェクトに変換する。
     ※ Yahooリアルタイム検索のDOM構造に合わせ、クラス名 "Tweet_time__78Ddq" を利用。
     """
     try:
@@ -76,7 +74,7 @@ def extract_tweet_date(tweet_element):
     except NoSuchElementException:
         return None
 
-# ===== スクロールや「もっと見る」操作 =====
+# ===== スクロール操作と「もっと見る」操作 =====
 def scroll_to_elem(driver, elem):
     try:
         actions = ActionChains(driver)
@@ -104,29 +102,25 @@ def click_show_more_button(driver):
     except NoSuchElementException:
         return False
 
-def extract_all_tweet_elements(driver):
+def extract_all_tweet_elements(driver, max_iterations=30):
     """
-    ページ内のツイート要素を全て取得し、過去1週間より古いツイートが現れるまで
-    「もっと見る」操作を実施する。
+    「もっと見る」ボタンがなくなるか、max_iterations 回以上スクロールしたら終了する。
     """
+    iterations = 0
     all_tweets = driver.find_elements(By.CLASS_NAME, "Tweet_TweetContainer__gC_9g")
-    one_week_ago = datetime.now() - timedelta(days=7)
-    while True:
-        older_found = False
-        for tweet in all_tweets:
-            dt = extract_tweet_date(tweet)
-            if dt and dt < one_week_ago:
-                older_found = True
-                break
-        if older_found:
-            break
+    while iterations < max_iterations:
         btn = find_show_more_button(driver)
         if btn:
             click_show_more_button(driver)
             time.sleep(1)
-            all_tweets = driver.find_elements(By.CLASS_NAME, "Tweet_TweetContainer__gC_9g")
+            new_tweets = driver.find_elements(By.CLASS_NAME, "Tweet_TweetContainer__gC_9g")
+            if len(new_tweets) > len(all_tweets):
+                all_tweets = new_tweets
+            else:
+                break
         else:
             break
+        iterations += 1
     return all_tweets
 
 # ===== ツイート要素の取得 =====
