@@ -49,9 +49,13 @@ for tweet_element in tweet_elements:
     try:
         tweet_text = tweet_element.text.strip()
         
-        # ツイートが空でない場合に追加
-        if tweet_text:
-            tweet_texts.add(tweet_text)
+        # ツイートが「ヨルクラ」を含むか確認
+        if 'ヨルクラ' in tweet_text:
+            # 日付と時間の抽出（簡易的なパターン）
+            time_match = re.search(r'(\d{1,2}/\d{1,2} \d{1,2}:\d{1,2})', tweet_text)
+            if time_match:
+                tweet_time = time_match.group(1)
+                tweet_texts.add(f'{tweet_time} - {tweet_text}')
     except Exception:
         continue
 
