@@ -1,5 +1,6 @@
 import time
 import urllib.parse
+from datetime import datetime, timedelta
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -34,16 +35,24 @@ except Exception:
     driver.quit()
     exit()
 
+# 過去6時間以内のツイートを取得するための時間範囲
+now = datetime.now()
+six_hours_ago = now - timedelta(hours=6)
+
 # ツイート要素を取得
 tweet_elements = driver.find_elements(By.CSS_SELECTOR, 'div[class*="Tweet"]')
 
-# ツイートの文章を取得
-tweet_texts = []
+# ツイートの文章と時間を取得
+tweet_texts = set()
 for tweet_element in tweet_elements:
     try:
         tweet_text = tweet_element.text.strip()
-        if tweet_text:
-            tweet_texts.append(tweet_text)
+        time_element = tweet_element.find_element(By.CSS_SELECTOR, 'time')
+        tweet_time = datetime.strptime(time_element.get_attribute('datetime'), '%Y-%m-%dT%H:%M:%S.%fZ')
+        
+        # ツイートが過去6時間以内であれば追加
+        if tweet_text and tweet_time >= six_hours_ago:
+            tweet_texts.add(tweet_text)
     except Exception:
         continue
 
