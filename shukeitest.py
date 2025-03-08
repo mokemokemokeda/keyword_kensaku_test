@@ -6,6 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import re
 
 # Chromeのオプションを設定
 CHROME_OPTIONS = Options()
@@ -47,8 +48,18 @@ tweet_texts = set()
 for tweet_element in tweet_elements:
     try:
         tweet_text = tweet_element.text.strip()
-        time_element = tweet_element.find_element(By.CSS_SELECTOR, 'time')
-        tweet_time = datetime.strptime(time_element.get_attribute('datetime'), '%Y-%m-%dT%H:%M:%S.%fZ')
+        time_text = tweet_element.find_element(By.CSS_SELECTOR, 'span[class*="time"]').text
+        
+        # 時間表記の処理
+        tweet_time = now
+        if "分前" in time_text:
+            minutes_ago = int(re.search(r'\d+', time_text).group())
+            tweet_time = now - timedelta(minutes=minutes_ago)
+        elif "時間前" in time_text:
+            hours_ago = int(re.search(r'\d+', time_text).group())
+            tweet_time = now - timedelta(hours=hours_ago)
+        elif "昨日" in time_text:
+            tweet_time = now - timedelta(days=1)
         
         # ツイートが過去6時間以内であれば追加
         if tweet_text and tweet_time >= six_hours_ago:
