@@ -1,7 +1,6 @@
 import time
 import urllib.parse
 import re
-from datetime import datetime, timedelta
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -25,7 +24,9 @@ driver = webdriver.Chrome(options=chrome_options)
 # ===== 検索キーワードとURL準備 =====
 keyword = "ヨルクラ"
 encoded_keyword = urllib.parse.quote(keyword)
-search_url = f"https://search.yahoo.co.jp/realtime/search?p={encoded_keyword}"
+
+# Yahooリアルタイム検索のURLに「過去1週間」のフィルターを適用
+search_url = f"https://search.yahoo.co.jp/realtime/search?p={encoded_keyword}&ei=UTF-8&rs=2"
 
 driver.get(search_url)
 
