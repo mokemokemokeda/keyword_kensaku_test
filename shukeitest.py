@@ -22,10 +22,12 @@ url_encoded_keyword = urllib.parse.quote(keyword)
 # WebDriverでYahooリアルタイム検索のページを開く
 driver.get(f'https://search.yahoo.co.jp/realtime/search?p={url_encoded_keyword}')
 
-# 明示的な待機を使用して要素が表示されるのを待つ
+time.sleep(3)  # ページの読み込みを待つ
+
+# 明示的な待機を使用してツイート要素が表示されるのを待つ
 try:
     WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.CLASS_NAME, 'Tweet_TweetContainer'))
+        EC.presence_of_element_located((By.CSS_SELECTOR, 'div[class*="Tweet"]'))
     )
 except Exception:
     print("ツイートの取得に失敗しました。")
@@ -33,14 +35,15 @@ except Exception:
     exit()
 
 # ツイート要素を取得
-tweet_elements = driver.find_elements(By.CLASS_NAME, 'Tweet_TweetContainer')
+tweet_elements = driver.find_elements(By.CSS_SELECTOR, 'div[class*="Tweet"]')
 
 # ツイートの文章を取得
 tweet_texts = []
 for tweet_element in tweet_elements:
     try:
-        tweet_text = tweet_element.find_element(By.CLASS_NAME, 'Tweet_body').text
-        tweet_texts.append(tweet_text)
+        tweet_text = tweet_element.text.strip()
+        if tweet_text:
+            tweet_texts.append(tweet_text)
     except Exception:
         continue
 
