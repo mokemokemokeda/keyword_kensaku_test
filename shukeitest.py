@@ -3,6 +3,8 @@ import urllib.parse
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 # Chromeのオプションを設定
 CHROME_OPTIONS = Options()
@@ -19,16 +21,25 @@ url_encoded_keyword = urllib.parse.quote(keyword)
 
 # WebDriverでYahooリアルタイム検索のページを開く
 driver.get(f'https://search.yahoo.co.jp/realtime/search?p={url_encoded_keyword}')
-time.sleep(2)  # サーバー側の負荷を避けるために待機
+
+# 明示的な待機を使用して要素が表示されるのを待つ
+try:
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CLASS_NAME, 'Tweet_TweetContainer'))
+    )
+except Exception:
+    print("ツイートの取得に失敗しました。")
+    driver.quit()
+    exit()
 
 # ツイート要素を取得
-tweet_elements = driver.find_elements(By.CLASS_NAME, 'Tweet_TweetContainer__gC_9g')
+tweet_elements = driver.find_elements(By.CLASS_NAME, 'Tweet_TweetContainer')
 
 # ツイートの文章を取得
 tweet_texts = []
 for tweet_element in tweet_elements:
     try:
-        tweet_text = tweet_element.find_element(By.CLASS_NAME, 'Tweet_body__XtDoj').text
+        tweet_text = tweet_element.find_element(By.CLASS_NAME, 'Tweet_body').text
         tweet_texts.append(tweet_text)
     except Exception:
         continue
