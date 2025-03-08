@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import os
 import json
 
@@ -26,37 +28,24 @@ encoded_keyword = urllib.parse.quote(keyword)
 search_url = f"https://search.yahoo.co.jp/realtime/search?p={encoded_keyword}"
 
 driver.get(search_url)
-time.sleep(3)  # ページの読み込みを待つ
 
-# 件数表示を取得する試み
-count_text = None
-# ① CSSセレクタで取得（従来の例）
+# ページ読み込みの安定化のために待機
+time.sleep(3)
+
+# WebDriverWait を使い、「件」という文字を含む要素が表示されるのを待つ
 try:
-    count_element = driver.find_element(By.CSS_SELECTOR, ".resultCount")
-    count_text = count_element.text  # 例："約467件"
-except Exception as e:
-    print("CSSセレクタ(.resultCount)では件数要素が見つかりませんでした。", e)
-
-# ② XPathで「約」と「件」を含む要素を探索
-if not count_text:
-    print("XPathによる探索を試みます。")
-    elements = driver.find_elements(By.XPATH, "//*[contains(text(),'約') and contains(text(),'件')]")
-    for elem in elements:
-        text = elem.text.strip()
-        # 「約◯◯件」の形式かチェック
-        m = re.search(r'約([\d,]+)件', text)
-        if m:
-            count_text = m.group(0)
-            break
-
-if count_text:
-    m = re.search(r'約?([\d,]+)', count_text)
+    element = WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.XPATH, "//*[contains(text(),'件')]"))
+    )
+    count_text = element.text  # 例："約467件" など
+    # 正規表現で数字部分を抽出
+    m = re.search(r'約?([\d,]+)件', count_text)
     if m:
-        count_number = int(m.group(1).replace(',', ''))
-        print(f"過去1週間で『{keyword}』を含むツイート数: {count_number} 件")
+        count = int(m.group(1).replace(',', ''))
+        print(f"過去1週間で『{keyword}』を含むツイート数: {count} 件")
     else:
-        print("件数の抽出に失敗しました: 数字パターンが一致しません。")
-else:
-    print("件数の抽出に失敗しました: 該当するテキスト要素が見つかりませんでした。")
+        print("件数の正規表現抽出に失敗しました。")
+except Exception as e:
+    print("件数の抽出に失敗しました:", e)
 
 driver.quit()
