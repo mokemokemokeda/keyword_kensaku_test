@@ -1,72 +1,58 @@
 import time
 import urllib.parse
-import re
-from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-import os
-import json
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
+import chromedriver_autoinstaller
 
-# ===== Google認証周り（変更不要） =====
-google_credentials_json = os.getenv("GOOGLE_SERVICE_ACCOUNT")
-if not google_credentials_json:
-    raise ValueError("GOOGLE_SERVICE_ACCOUNT が設定されていません。")
-json_data = json.loads(google_credentials_json)
-print("✅ Google Drive API の認証情報を取得しました！")
+# ChromeDriverの自動インストール
+chromedriver_autoinstaller.install()
 
-# ===== Selenium WebDriver のセットアップ =====
-chrome_options = Options()
-chrome_options.add_argument("--headless")
-driver = webdriver.Chrome(options=chrome_options)
+# Chromeのオプションを設定
+CHROME_OPTIONS = Options()
+CHROME_OPTIONS.add_argument('--headless')  # ヘッドレスモードでブラウザを表示せずに動作
 
-# ===== 検索キーワードとURL準備 =====
-keyword = "ヨルクラ"
-encoded_keyword = urllib.parse.quote(keyword)
-search_url = f"https://search.yahoo.co.jp/realtime/search?p={encoded_keyword}"
+# Chrome WebDriverのインスタンスを作成
+driver = webdriver.Chrome(options=CHROME_OPTIONS)
 
-driver.get(search_url)
+# 検索キーワード
+keyword = '原神'
 
-# ページ読み込みの安定化のために待機
-time.sleep(3)
+# URLエンコード
+url_encoded_keyword = urllib.parse.quote(keyword)
 
-# ページが完全に読み込まれるまで待機
-WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(),'件')]")))
+# WebDriverでYahooリアルタイム検索のページを開く
+driver.get(f'https://search.yahoo.co.jp/realtime/search?p={url_encoded_keyword}')
+time.sleep(1)  # サーバー側の負荷を避けるために1秒待機
 
-# スクロールして全てのツイートを読み込む
-for _ in range(5):  # スクロール回数を5回に設定
-    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-    time.sleep(3)  # スクロール後に待機
+# 「Tab_on__cXzYq」クラスの要素をクリックして、タイムラインの自動更新を停止する
+driver.find_element(By.CLASS_NAME, 'Tab_on__cXzYq').click()
+time.sleep(1)
 
-# ツイート情報を表示（ツイート内容）
-tweets = driver.find_elements(By.XPATH, "//div[contains(@class, 'card-content')]")
-
-print(f"ツイートの数: {len(tweets)} 件")
-
-for tweet in tweets:
-    try:
-        # ツイート内容を表示
-        tweet_content = tweet.find_element(By.XPATH, ".//p").text  # ツイート内容を取得
-        print(f"ツイート内容: {tweet_content}")
-
-        # 良いね数を取得
+# ツイート情報を抽出する関数（詳細情報）
+def extract_tweet_texts(tweet_elements):
+    tweet_texts = []
+    for tweet_element in tweet_elements:
         try:
-            like_count = tweet.find_element(By.XPATH, ".//span[contains(@class, 'sw-CardBase-like')]").text
-            print(f"良いね数: {like_count}")
-        except Exception as e:
-            print("良いね数の取得に失敗しました:", e)
+            tweet_text_element = tweet_element.find_element(By.CLASS_NAME, 'Tweet_body__XtDoj')
+            tweet_texts.append(tweet_text_element.text)
+        except NoSuchElementException:
+            continue
+    return tweet_texts
 
-        # 投稿時間を取得
-        try:
-            time_element = tweet.find_element(By.XPATH, ".//time")
-            tweet_time = datetime.strptime(time_element.get_attribute("datetime"), "%Y-%m-%dT%H:%M:%S.%fZ")
-            print(f"投稿時間: {tweet_time}")
-        except Exception as e:
-            print("投稿時間の取得に失敗しました:", e)
+# ツイート要素を取得
+tweet_elements = driver.find_elements(By.CLASS_NAME, 'Tweet_TweetContainer__gC_9g')
 
-    except Exception as e:
-        print(f"ツイート情報の取得に失敗しました: {e}")
+# ツイートのテキストを取得
+tweet_texts = extract_tweet_texts(tweet_elements)
 
+# 取得したツイート数を表示
+print(f"取得したツイート数: {len(tweet_texts)}")
+
+# 以下、ツイート情報を取得するコードも記述
+# ...
+
+# ドライバを閉じる
 driver.quit()
