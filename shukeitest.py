@@ -35,8 +35,8 @@ time.sleep(3)
 # WebDriverWait を使い、「件」という文字を含む要素が表示されるのを待つ
 try:
     element = WebDriverWait(driver, 10).until(
-        EC.visibility_of_element_located((By.XPATH, "//*[contains(text(),'件')]"))
-    )
+        EC.visibility_of_element_located((By.XPATH, "//*[contains(text(),'件')]")
+    ))
     count_text = element.text  # 例："約467件" など
     # 正規表現で数字部分を抽出
     m = re.search(r'約?([\d,]+)件', count_text)
@@ -48,4 +48,37 @@ try:
 except Exception as e:
     print("件数の抽出に失敗しました:", e)
 
+# ===== ツイート情報を取得 =====
+def get_tweets():
+    tweets = []
+    last_height = driver.execute_script("return document.body.scrollHeight")
+    while True:
+        tweet_elements = driver.find_elements(By.CSS_SELECTOR, "div[class*='Tweet_TweetContainer']")
+        for tweet_element in tweet_elements:
+            try:
+                tweet_text = tweet_element.find_element(By.CSS_SELECTOR, "div[class*='Tweet_body']").text.strip()
+                like_count = tweet_element.find_element(By.CSS_SELECTOR, "span[class*='Tweet_likeCount']").text.strip()
+                tweets.append({"text": tweet_text, "likes": like_count})
+            except Exception:
+                continue
+
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(2)
+        new_height = driver.execute_script("return document.body.scrollHeight")
+        if new_height == last_height:
+            break
+        last_height = new_height
+    return tweets
+
+# ツイートの取得
+tweet_data = get_tweets()
+
+# 取得したツイートの数を表示
+print(f'取得したツイート数: {len(tweet_data)}')
+
+# 取得したツイートの内容といいね数を表示
+for idx, tweet in enumerate(tweet_data, 1):
+    print(f'{idx}: {tweet["text"]} (いいね: {tweet["likes"]})')
+
+# WebDriverを終了
 driver.quit()
