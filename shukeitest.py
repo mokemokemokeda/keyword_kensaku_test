@@ -32,51 +32,41 @@ driver.get(search_url)
 # ページ読み込みの安定化のために待機
 time.sleep(3)
 
-# WebDriverWait を使い、「件」という文字を含む要素が表示されるのを待つ
-try:
-    # 最初の「14件」を表示
-    element = WebDriverWait(driver, 10).until(
-        EC.visibility_of_element_located((By.XPATH, "//*[contains(text(),'件')]"))
-    )
-    count_text = element.text  # 例："約14件" など
-    # 正規表現で数字部分を抽出
-    m = re.search(r'約?([\d,]+)件', count_text)
-    if m:
-        count = int(m.group(1).replace(',', ''))
-        print(f"最初のカウント：『{keyword}』を含むツイート数: {count} 件")
-    else:
-        print("件数の正規表現抽出に失敗しました。")
+# ページが完全に読み込まれるまで待機
+WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(),'件')]")))
 
-    # ツイート情報を表示（ツイート内容）
-    tweets = driver.find_elements(By.XPATH, "//div[contains(@class, 'card-content')]")  # ツイート部分の親要素を動的に特定
+# スクロールして全てのツイートを読み込む
+for _ in range(5):  # スクロール回数を5回に設定
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(3)  # スクロール後に待機
 
-    print(f"ツイートの数: {len(tweets)} 件")
+# ツイート情報を表示（ツイート内容）
+tweets = driver.find_elements(By.XPATH, "//div[contains(@class, 'card-content')]")
 
-    for tweet in tweets:
+print(f"ツイートの数: {len(tweets)} 件")
+
+for tweet in tweets:
+    try:
+        # ツイート内容を表示
+        tweet_content = tweet.find_element(By.XPATH, ".//p").text  # ツイート内容を取得
+        print(f"ツイート内容: {tweet_content}")
+
+        # 良いね数を取得
         try:
-            # ツイート内容を表示
-            tweet_content = tweet.find_element(By.XPATH, ".//p").text  # ツイート内容を取得
-            print(f"ツイート内容: {tweet_content}")
-
-            # 良いね数を取得
-            try:
-                like_count = tweet.find_element(By.XPATH, ".//span[contains(@class, 'sw-CardBase-like')]").text
-                print(f"良いね数: {like_count}")
-            except Exception as e:
-                print("良いね数の取得に失敗しました:", e)
-
-            # 投稿時間を取得
-            try:
-                time_element = tweet.find_element(By.XPATH, ".//time")
-                tweet_time = datetime.strptime(time_element.get_attribute("datetime"), "%Y-%m-%dT%H:%M:%S.%fZ")
-                print(f"投稿時間: {tweet_time}")
-            except Exception as e:
-                print("投稿時間の取得に失敗しました:", e)
-
+            like_count = tweet.find_element(By.XPATH, ".//span[contains(@class, 'sw-CardBase-like')]").text
+            print(f"良いね数: {like_count}")
         except Exception as e:
-            print(f"ツイート情報の取得に失敗しました: {e}")
+            print("良いね数の取得に失敗しました:", e)
 
-except Exception as e:
-    print("ツイートの抽出に失敗しました:", e)
+        # 投稿時間を取得
+        try:
+            time_element = tweet.find_element(By.XPATH, ".//time")
+            tweet_time = datetime.strptime(time_element.get_attribute("datetime"), "%Y-%m-%dT%H:%M:%S.%fZ")
+            print(f"投稿時間: {tweet_time}")
+        except Exception as e:
+            print("投稿時間の取得に失敗しました:", e)
+
+    except Exception as e:
+        print(f"ツイート情報の取得に失敗しました: {e}")
 
 driver.quit()
