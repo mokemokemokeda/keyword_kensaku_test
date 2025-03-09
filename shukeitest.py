@@ -32,11 +32,23 @@ driver.get(search_url)
 # ページ読み込みの安定化のために待機
 time.sleep(3)
 
-# ツイートの投稿時間を過去6時間以内にフィルタリング
-six_hours_ago = datetime.now() - timedelta(hours=6)
-
 # WebDriverWait を使い、「件」という文字を含む要素が表示されるのを待つ
 try:
+    # 1. 最初の「467件」を消去
+    element = WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.XPATH, "//*[contains(text(),'件')]"))
+    )
+    count_text = element.text  # 例："約467件" など
+    # 正規表現で数字部分を抽出
+    m = re.search(r'約?([\d,]+)件', count_text)
+    if m:
+        count = int(m.group(1).replace(',', ''))
+        print(f"最初のカウント：『{keyword}』を含むツイート数: {count} 件")
+    else:
+        print("件数の正規表現抽出に失敗しました。")
+    
+    # 2. ツイートの投稿時間を過去6時間以内にフィルタリング
+    six_hours_ago = datetime.now() - timedelta(hours=6)
     tweets = driver.find_elements(By.XPATH, "//*[@class='SearchResult-item']")  # ツイートを格納する要素を抽出
     tweet_count = 0
 
@@ -50,6 +62,7 @@ try:
             tweet_count += 1
 
     print(f"過去6時間以内に『{keyword}』を含むツイート数: {tweet_count} 件")
+    
 except Exception as e:
     print("ツイートの抽出に失敗しました:", e)
 
