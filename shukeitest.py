@@ -50,22 +50,24 @@ try:
     # ツイート情報を表示（ツイート内容、良いね数、投稿時間）
     tweets = driver.find_elements(By.XPATH, "//li[contains(@class, 'SearchResult-item')]")  # ツイートを格納する要素を抽出
 
+    print(f"ツイートの数: {len(tweets)} 件")
+
     for tweet in tweets:
         try:
+            # ツイート全体を表示して、正しい要素が取得されているか確認
+            print(f"ツイート内容のデバッグ出力: {tweet.text}")
+
             # ツイート内容を抽出
             tweet_content = tweet.find_element(By.XPATH, ".//div[contains(@class, 'SearchResult-itemText')]").text
+            print(f"ツイート内容: {tweet_content}")
 
             # 良いね数を抽出
             like_count = tweet.find_element(By.XPATH, ".//span[contains(@class, 'likeCount')]").text
+            print(f"良いね数: {like_count}")
 
             # ツイートの投稿時間を抽出
             time_element = tweet.find_element(By.XPATH, ".//time")  # 投稿時間を含む要素
             tweet_time = datetime.strptime(time_element.get_attribute("datetime"), "%Y-%m-%dT%H:%M:%S.%fZ")
-
-            # ツイート内容、良いね数、投稿時間を表示
-            print("\n--- ツイート情報 ---")
-            print(f"ツイート内容: {tweet_content}")
-            print(f"良いね数: {like_count}")
             print(f"投稿時間: {tweet_time}")
 
         except Exception as e:
