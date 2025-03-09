@@ -58,7 +58,20 @@ try:
             tweet_content = tweet.text
             print(f"ツイート内容: {tweet_content}")
 
-            # ツイートの良いね数や時間は、現在のXPathの情報には含まれていないため、追加で取得できる場合はその部分を調整
+            # 良いね数を取得
+            try:
+                like_count = tweet.find_element(By.XPATH, ".//following-sibling::div//span[contains(@class, 'sw-CardBase-like')]").text
+                print(f"良いね数: {like_count}")
+            except Exception as e:
+                print("良いね数の取得に失敗しました:", e)
+
+            # 投稿時間を取得
+            try:
+                time_element = tweet.find_element(By.XPATH, ".//preceding-sibling::time")
+                tweet_time = datetime.strptime(time_element.get_attribute("datetime"), "%Y-%m-%dT%H:%M:%S.%fZ")
+                print(f"投稿時間: {tweet_time}")
+            except Exception as e:
+                print("投稿時間の取得に失敗しました:", e)
 
         except Exception as e:
             print(f"ツイート情報の取得に失敗しました: {e}")
