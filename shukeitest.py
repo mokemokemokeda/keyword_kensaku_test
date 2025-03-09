@@ -1,12 +1,12 @@
 import time
 import urllib.parse
-import re
 from datetime import datetime, timedelta
+import re
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
+from selenium.webdriver.common.action_chains import ActionChains
 import os
 import json
 
@@ -19,7 +19,7 @@ print("✅ Google Drive API の認証情報を取得しました！")
 
 # ===== Selenium WebDriver のセットアップ =====
 chrome_options = Options()
-chrome_options.add_argument("--headless")
+chrome_options.add_argument("--headless")  # ヘッドレスモード
 driver = webdriver.Chrome(options=chrome_options)
 
 # ===== 検索キーワードとURL準備 =====
@@ -28,57 +28,111 @@ encoded_keyword = urllib.parse.quote(keyword)
 search_url = f"https://search.yahoo.co.jp/realtime/search?p={encoded_keyword}"
 
 driver.get(search_url)
+time.sleep(2)  # ページが完全に読み込まれるまで待機
 
-# ページ読み込みの安定化のために待機
-time.sleep(3)
-
-# WebDriverWait を使い、「件」という文字を含む要素が表示されるのを待つ
+# 自動更新停止のため、該当タブをクリック（存在すれば）
 try:
-    element = WebDriverWait(driver, 10).until(
-        EC.visibility_of_element_located((By.XPATH, "//*[contains(text(),'件')]")
-    ))
-    count_text = element.text  # 例："約467件" など
-    # 正規表現で数字部分を抽出
-    m = re.search(r'約?([\d,]+)件', count_text)
-    if m:
-        count = int(m.group(1).replace(',', ''))
-        print(f"過去1週間で『{keyword}』を含むツイート数: {count} 件")
-    else:
-        print("件数の正規表現抽出に失敗しました。")
-except Exception as e:
-    print("件数の抽出に失敗しました:", e)
+    driver.find_element(By.CLASS_NAME, "Tab_on__cXzYq").click()
+    time.sleep(1)
+except NoSuchElementException:
+    pass
 
-# ===== ツイート情報を取得 =====
-def get_tweets():
-    tweets = []
-    last_height = driver.execute_script("return document.body.scrollHeight")
-    while True:
-        tweet_elements = driver.find_elements(By.CSS_SELECTOR, "div[class*='Tweet_TweetContainer']")
-        for tweet_element in tweet_elements:
-            try:
-                tweet_text = tweet_element.find_element(By.CSS_SELECTOR, "div[class*='Tweet_body']").text.strip()
-                like_count = tweet_element.find_element(By.CSS_SELECTOR, "span[class*='Tweet_likeCount']").text.strip()
-                tweets.append({"text": tweet_text, "likes": like_count})
-            except Exception:
-                continue
+# ===== ツイート時刻の解析関数 =====
+def parse_tweet_time(text):
+    """
+    ツイート時刻のテキスト（例："5分前", "2時間前", "2023/04/01 12:34" など）を
+    datetime オブジェクトに変換する。
+    """
+    try:
+        if "前" in text:
+            m = re.search(r"(\d+)", text)
+            if m:
+                num = int(m.group(1))
+                if "秒前" in text:
+                    dt = datetime.now() - timedelta(seconds=num)
+                elif "分前" in text:
+                    dt = datetime.now() - timedelta(minutes=num)
+                elif "時間前" in text:
+                    dt = datetime.now() - timedelta(hours=num)
+                else:
+                    dt = datetime.now()
+                return dt
+        else:
+            dt = datetime.strptime(text, "%Y/%m/%d %H:%M")
+            return dt
+    except Exception:
+        return None
 
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(2)
-        new_height = driver.execute_script("return document.body.scrollHeight")
-        if new_height == last_height:
+def extract_tweet_date(tweet_element):
+    """
+    ツイート要素から時刻テキストを取得し、datetime オブジェクトに変換する。
+    ※ Yahooリアルタイム検索のDOM構造に合わせ、クラス名 "Tweet_time__78Ddq" を利用。
+    """
+    try:
+        time_text = tweet_element.find_element(By.CLASS_NAME, "Tweet_time__78Ddq").text
+        return parse_tweet_time(time_text)
+    except NoSuchElementException:
+        return None
+
+# ===== スクロール操作と「もっと見る」操作 =====
+def scroll_to_elem(driver, elem):
+    try:
+        actions = ActionChains(driver)
+        actions.move_to_element(elem)
+        actions.perform()
+        time.sleep(1)
+        return True
+    except (NoSuchElementException, StaleElementReferenceException):
+        return False
+
+def find_show_more_button(driver):
+    try:
+        return driver.find_element(By.CLASS_NAME, "More_More__rHgzp")
+    except NoSuchElementException:
+        return None
+
+def click_show_more_button(driver):
+    try:
+        btn = find_show_more_button(driver)
+        if btn:
+            btn.click()
+            time.sleep(1)
+            return True
+        return False
+    except NoSuchElementException:
+        return False
+
+def extract_all_tweet_elements(driver, max_iterations=30):
+    """
+    「もっと見る」ボタンがなくなるか、max_iterations 回以上スクロールしたら終了する。
+    """
+    iterations = 0
+    all_tweets = driver.find_elements(By.CLASS_NAME, "Tweet_TweetContainer__gC_9g")
+    while iterations < max_iterations:
+        btn = find_show_more_button(driver)
+        if btn:
+            click_show_more_button(driver)
+            time.sleep(1)
+            new_tweets = driver.find_elements(By.CLASS_NAME, "Tweet_TweetContainer__gC_9g")
+            if len(new_tweets) > len(all_tweets):
+                all_tweets = new_tweets
+            else:
+                break
+        else:
             break
-        last_height = new_height
-    return tweets
+        iterations += 1
+    return all_tweets
 
-# ツイートの取得
-tweet_data = get_tweets()
-
-# 取得したツイートの数を表示
-print(f'取得したツイート数: {len(tweet_data)}')
-
-# 取得したツイートの内容といいね数を表示
-for idx, tweet in enumerate(tweet_data, 1):
-    print(f'{idx}: {tweet["text"]} (いいね: {tweet["likes"]})')
-
-# WebDriverを終了
+# ===== ツイート要素の取得 =====
+tweet_elements = extract_all_tweet_elements(driver)
 driver.quit()
+
+# ===== 過去1週間以内のツイート数をカウント =====
+one_week_ago = datetime.now() - timedelta(days=7)
+count = 0
+for tweet in tweet_elements:
+    dt = extract_tweet_date(tweet)
+    if dt and dt >= one_week_ago:
+        count += 1
+
+print(f"過去1週間で『{keyword}』を含むツイート数: {count} 件")
