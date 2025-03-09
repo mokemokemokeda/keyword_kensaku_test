@@ -48,26 +48,26 @@ try:
         print("件数の正規表現抽出に失敗しました。")
 
     # ツイート情報を表示（ツイート内容）
-    tweets = driver.find_elements(By.XPATH, "//*[@id='bt']/div[2]/div/div/div[1]/p")  # ツイート部分のXPath
+    tweets = driver.find_elements(By.XPATH, "//div[contains(@class, 'card-content')]")  # ツイート部分の親要素を動的に特定
 
     print(f"ツイートの数: {len(tweets)} 件")
 
     for tweet in tweets:
         try:
             # ツイート内容を表示
-            tweet_content = tweet.text
+            tweet_content = tweet.find_element(By.XPATH, ".//p").text  # ツイート内容を取得
             print(f"ツイート内容: {tweet_content}")
 
             # 良いね数を取得
             try:
-                like_count = tweet.find_element(By.XPATH, ".//following-sibling::div//span[contains(@class, 'like-count')]").text
+                like_count = tweet.find_element(By.XPATH, ".//span[contains(@class, 'sw-CardBase-like')]").text
                 print(f"良いね数: {like_count}")
             except Exception as e:
                 print("良いね数の取得に失敗しました:", e)
 
             # 投稿時間を取得
             try:
-                time_element = tweet.find_element(By.XPATH, ".//preceding-sibling::time")
+                time_element = tweet.find_element(By.XPATH, ".//time")
                 tweet_time = datetime.strptime(time_element.get_attribute("datetime"), "%Y-%m-%dT%H:%M:%S.%fZ")
                 print(f"投稿時間: {tweet_time}")
             except Exception as e:
