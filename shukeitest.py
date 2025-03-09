@@ -1,7 +1,7 @@
 import time
 import urllib.parse
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -34,11 +34,11 @@ time.sleep(3)
 
 # WebDriverWait を使い、「件」という文字を含む要素が表示されるのを待つ
 try:
-    # 1. 最初の「467件」を消去
+    # 最初の「14件」を表示
     element = WebDriverWait(driver, 10).until(
         EC.visibility_of_element_located((By.XPATH, "//*[contains(text(),'件')]"))
     )
-    count_text = element.text  # 例："約467件" など
+    count_text = element.text  # 例："約14件" など
     # 正規表現で数字部分を抽出
     m = re.search(r'約?([\d,]+)件', count_text)
     if m:
@@ -46,23 +46,31 @@ try:
         print(f"最初のカウント：『{keyword}』を含むツイート数: {count} 件")
     else:
         print("件数の正規表現抽出に失敗しました。")
-    
-    # 2. ツイートの投稿時間を過去6時間以内にフィルタリング
-    six_hours_ago = datetime.now() - timedelta(hours=6)
+
+    # ツイート情報を表示（ツイート内容、良いね数、投稿時間）
     tweets = driver.find_elements(By.XPATH, "//*[@class='SearchResult-item']")  # ツイートを格納する要素を抽出
-    tweet_count = 0
 
     for tweet in tweets:
-        # ツイート時間を抽出
-        time_element = tweet.find_element(By.XPATH, ".//time")  # 投稿時間を含む要素
-        tweet_time = datetime.strptime(time_element.get_attribute("datetime"), "%Y-%m-%dT%H:%M:%S.%fZ")
-        
-        # もしツイートが過去6時間以内ならカウント
-        if tweet_time > six_hours_ago:
-            tweet_count += 1
+        try:
+            # ツイート内容を抽出
+            tweet_content = tweet.find_element(By.XPATH, ".//div[@class='SearchResult-itemText']").text
+            
+            # 良いね数を抽出
+            like_count = tweet.find_element(By.XPATH, ".//span[@class='SearchResult-itemLikeCount']").text
+            
+            # ツイートの投稿時間を抽出
+            time_element = tweet.find_element(By.XPATH, ".//time")  # 投稿時間を含む要素
+            tweet_time = datetime.strptime(time_element.get_attribute("datetime"), "%Y-%m-%dT%H:%M:%S.%fZ")
+            
+            # ツイート内容、良いね数、投稿時間を表示
+            print("\n--- ツイート情報 ---")
+            print(f"ツイート内容: {tweet_content}")
+            print(f"良いね数: {like_count}")
+            print(f"投稿時間: {tweet_time}")
 
-    print(f"過去6時間以内に『{keyword}』を含むツイート数: {tweet_count} 件")
-    
+        except Exception as e:
+            print(f"ツイート情報の取得に失敗しました: {e}")
+
 except Exception as e:
     print("ツイートの抽出に失敗しました:", e)
 
