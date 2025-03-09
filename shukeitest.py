@@ -10,7 +10,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import os
 import json
 
-# ===== Google認証周り（変更不要） =====
+# ===== Google認証周り（変更不要) =====
 google_credentials_json = os.getenv("GOOGLE_SERVICE_ACCOUNT")
 if not google_credentials_json:
     raise ValueError("GOOGLE_SERVICE_ACCOUNT が設定されていません。")
@@ -48,21 +48,18 @@ try:
         print("件数の正規表現抽出に失敗しました。")
 
     # ツイート情報を表示（ツイート内容、良いね数、投稿時間）
-    tweets = driver.find_elements(By.XPATH, "//li[contains(@class, 'SearchResult-item')]")  # ツイートを格納する要素を抽出
+    tweets = driver.find_elements(By.XPATH, "//div[contains(@class, 'sw-CardBase')]")  # ツイートを格納する要素を抽出
 
     print(f"ツイートの数: {len(tweets)} 件")
 
     for tweet in tweets:
         try:
             # ツイート全体を表示して、正しい要素が取得されているか確認
-            print(f"ツイート内容のデバッグ出力: {tweet.text}")
-
-            # ツイート内容を抽出
-            tweet_content = tweet.find_element(By.XPATH, ".//div[contains(@class, 'SearchResult-itemText')]").text
+            tweet_content = tweet.find_element(By.XPATH, ".//div[contains(@class, 'sw-CardBase-body')]").text
             print(f"ツイート内容: {tweet_content}")
 
             # 良いね数を抽出
-            like_count = tweet.find_element(By.XPATH, ".//span[contains(@class, 'likeCount')]").text
+            like_count = tweet.find_element(By.XPATH, ".//div[contains(@class, 'sw-CardBase-reactionLike')]").text
             print(f"良いね数: {like_count}")
 
             # ツイートの投稿時間を抽出
