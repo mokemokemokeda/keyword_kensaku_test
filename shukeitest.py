@@ -33,12 +33,16 @@ driver.get(search_url)
 # ページ読み込みの安定化のために待機
 time.sleep(3)
 
+# デバッグ用にページの一部を表示
+print(driver.page_source[:1000])
+
 # WebDriverWait を使い、「件」という文字を含む要素が表示されるのを待つ
 try:
     element = WebDriverWait(driver, 10).until(
-        EC.visibility_of_element_located((By.XPATH, "//*[contains(text(),'件')]")
-    ))
+        EC.presence_of_element_located((By.XPATH, "//*[contains(text(),'件')]"))
+    )
     count_text = element.text  # 例："約467件" など
+    print(f"デバッグ: 取得した件数テキスト: {count_text}")
     # 正規表現で数字部分を抽出
     m = re.search(r'約?([\d,]+)件', count_text)
     if m:
@@ -55,6 +59,7 @@ def get_tweets():
     last_height = driver.execute_script("return document.body.scrollHeight")
     while True:
         tweet_elements = driver.find_elements(By.CLASS_NAME, 'Tweet_TweetContainer__gC_9g')
+        print(f"デバッグ: 取得したツイート要素の数: {len(tweet_elements)}")
         for tweet_element in tweet_elements:
             try:
                 tweet_text_element = tweet_element.find_element(By.CLASS_NAME, 'Tweet_body__XtDoj')
