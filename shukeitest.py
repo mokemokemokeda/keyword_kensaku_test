@@ -48,20 +48,20 @@ try:
         print("件数の正規表現抽出に失敗しました。")
 
     # ツイート情報を表示（ツイート内容、良いね数、投稿時間）
-    tweets = driver.find_elements(By.XPATH, "//*[@class='SearchResult-item']")  # ツイートを格納する要素を抽出
+    tweets = driver.find_elements(By.XPATH, "//li[contains(@class, 'SearchResult-item')]")  # ツイートを格納する要素を抽出
 
     for tweet in tweets:
         try:
             # ツイート内容を抽出
-            tweet_content = tweet.find_element(By.XPATH, ".//div[@class='SearchResult-itemText']").text
-            
+            tweet_content = tweet.find_element(By.XPATH, ".//div[contains(@class, 'SearchResult-itemText')]").text
+
             # 良いね数を抽出
-            like_count = tweet.find_element(By.XPATH, ".//span[@class='SearchResult-itemLikeCount']").text
-            
+            like_count = tweet.find_element(By.XPATH, ".//span[contains(@class, 'likeCount')]").text
+
             # ツイートの投稿時間を抽出
             time_element = tweet.find_element(By.XPATH, ".//time")  # 投稿時間を含む要素
             tweet_time = datetime.strptime(time_element.get_attribute("datetime"), "%Y-%m-%dT%H:%M:%S.%fZ")
-            
+
             # ツイート内容、良いね数、投稿時間を表示
             print("\n--- ツイート情報 ---")
             print(f"ツイート内容: {tweet_content}")
