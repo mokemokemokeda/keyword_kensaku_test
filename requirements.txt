@@ -6,3 +6,4 @@ pandas
 xlsxwriter
 requests
 openpyxl
+chromedriver_autoinstaller
