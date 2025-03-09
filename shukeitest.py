@@ -1,43 +1,51 @@
-import os
-import requests
+import time
+import urllib.parse
+import re
 from datetime import datetime, timedelta
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import os
 import json
 
-# Google認証情報（今回は直接利用しませんが、残してあります）
+# ===== Google認証周り（変更不要） =====
 google_credentials_json = os.getenv("GOOGLE_SERVICE_ACCOUNT")
 if not google_credentials_json:
     raise ValueError("GOOGLE_SERVICE_ACCOUNT が設定されていません。")
 json_data = json.loads(google_credentials_json)
 print("✅ Google Drive API の認証情報を取得しました！")
 
-# Twitter API 認証
-bearer_token = os.getenv("TWITTER_BEARER_TOKEN")
-if not bearer_token:
-    raise ValueError("TWITTER_BEARER_TOKEN が設定されていません。")
-headers = {"Authorization": f"Bearer {bearer_token}"}
+# ===== Selenium WebDriver のセットアップ =====
+chrome_options = Options()
+chrome_options.add_argument("--headless")
+driver = webdriver.Chrome(options=chrome_options)
 
-# 検索クエリと期間の設定
-query = "ヨルクラ"
+# ===== 検索キーワードとURL準備 =====
+keyword = "ヨルクラ"
+encoded_keyword = urllib.parse.quote(keyword)
+search_url = f"https://search.yahoo.co.jp/realtime/search?p={encoded_keyword}"
 
-# end_time は現在時刻から10秒引いた値にする
-end_time = datetime.utcnow() - timedelta(seconds=10)
-start_time = end_time - timedelta(days=7)
+driver.get(search_url)
 
-# ISO8601形式の文字列に変換
-start_time_str = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-end_time_str = end_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+# ページ読み込みの安定化のために待機
+time.sleep(3)
 
-# Recent Tweet CountsエンドポイントURL
-url = (
-    "https://api.twitter.com/2/tweets/counts/recent"
-    f"?query={query}&start_time={start_time_str}&end_time={end_time_str}&granularity=day"
-)
+# WebDriverWait を使い、「件」という文字を含む要素が表示されるのを待つ
+try:
+    element = WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.XPATH, "//*[contains(text(),'件')]"))
+    )
+    count_text = element.text  # 例："約467件" など
+    # 正規表現で数字部分を抽出
+    m = re.search(r'約?([\d,]+)件', count_text)
+    if m:
+        count = int(m.group(1).replace(',', ''))
+        print(f"過去1週間で『{keyword}』を含むツイート数: {count} 件")
+    else:
+        print("件数の正規表現抽出に失敗しました。")
+except Exception as e:
+    print("件数の抽出に失敗しました:", e)
 
-response = requests.get(url, headers=headers)
-if response.status_code != 200:
-    raise Exception(f"Twitter API エラー: {response.status_code} {response.text}")
-
-data = response.json()
-total_count = sum([int(item["tweet_count"]) for item in data.get("data", [])])
-
-print(f"過去1週間で『{query}』を含むツイート数: {total_count} 件")
+driver.quit()
